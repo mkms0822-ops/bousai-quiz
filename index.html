@@ -2263,6 +2263,10 @@ const QUIZ_DATA = {
 // 空のままでもクイズは正常に動きます（送信だけスキップされます）。
 const SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycby8yqQ-1sIZrcpKfzi1D7teL7ogBQHQWUKjzEAYjE8qe76y0biy2IHvkULjeEWuzoCHNA/exec';
 
+// 防災情報センター本体のGAS。クイズの結果とスタンプは、こちらへ送ります。
+const MAIN_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVC_aeGGOv4m7-CpKl2Z75muRwWrU6MZDj3sgaBcobw9mSq9jYDY95BsoxiZHkw1dimg/exec';
+
+
 // 防災診断の入力内容を1行のテキストにまとめる
 function buildDiagnosisSummary() {
   const get = id => { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
@@ -2285,20 +2289,32 @@ function buildDiagnosisSummary() {
 // クイズ結果をスプレッドシートへ送信（失敗してもクイズの動作には影響しない）
 function sendResultToSheet(score) {
   try {
-    if (!SHEET_WEBHOOK_URL || SHEET_WEBHOOK_URL.indexOf('http') !== 0) return;
     const levelNames = {1:'ひらがな',2:'かんたん漢字',3:'中学生レベル',4:'高校生レベル',5:'成人レベル'};
+    const get = id => { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
     const payload = {
       type: 'quiz',
+      action: 'log',
+      code: quizStampCode(),
       diagnosis: buildDiagnosisSummary(),
       level: selectedAgeLevel,
       levelName: levelNames[selectedAgeLevel] || ('レベル' + selectedAgeLevel),
       score: score,
-      total: 20
+      total: quizGoal,
+      // 診断の内訳（集計しやすいよう項目ごとに送る）
+      pref: get('pref-select'),
+      household: (counts.total || 0),
+      child: (counts.child || 0),
+      elder: (counts.elder || 0),
+      disabled: (counts.disabled || 0),
+      pet: (counts.pet || 0),
+      house: get('house-type'),
+      buildYear: get('build-year'),
+      floor: get('floor'),
+      hazard: get('hazard')
     };
-    fetch(SHEET_WEBHOOK_URL, {
+    fetch(MAIN_GAS_URL, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     }).catch(function(){ /* 通信失敗は無視 */ });
   } catch (e) { /* 送信エラーでもクイズは継続 */ }
@@ -2980,7 +2996,6 @@ function showResult() {
    ・防災情報センターと同じ引き継ぎコードを使います
    ・同じ日に何度受け取っても、1つだけです
    ============================================================ */
-const MAIN_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVC_aeGGOv4m7-CpKl2Z75muRwWrU6MZDj3sgaBcobw9mSq9jYDY95BsoxiZHkw1dimg/exec';
 
 function quizStampCode(){
   try{
