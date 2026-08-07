@@ -538,7 +538,7 @@ select.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Cs
 
   <div class="quiz-hero">
     <h2>🏆 防災クイズ</h2>
-    <p>全20問に挑戦して防災力をチェック！</p>
+    <p>まず10問。続けたい方は、さらに10問に挑戦できます。</p>
   </div>
 
   <div class="container page-enter">
@@ -2726,10 +2726,14 @@ function selectAge(level) {
   document.getElementById('start-quiz-btn').disabled = false;
 }
 
+/* 10問ずつ区切って出題する。
+   前半10問で終えることも、続けて20問まで挑戦することもできる。 */
+let quizGoal = 10;          // 今回どこまで解くか（10 または 20）
+
 function startQuiz() {
   if (!selectedAgeLevel) return;
   const pool = QUIZ_DATA[selectedAgeLevel];
-  // シャッフルして20問選択
+  // 20問ぶん用意しておき、まず前半10問を出す
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   // 選択肢の並びも問題ごとにシャッフルする（正解位置の偏りを防ぐ）
   quizQuestions = shuffled.slice(0, 20).map(item => {
@@ -2738,16 +2742,27 @@ function startQuiz() {
   });
   currentQ = 0;
   answers = [];
+  quizGoal = 10;
   showPage('page-quiz');
   renderQuestion();
+}
+
+/* 後半10問へ進む */
+function continueQuiz() {
+  quizGoal = 20;
+  currentQ = 10;
+  showPage('page-quiz');
+  renderQuestion();
+  window.scrollTo(0, 0);
 }
 
 function renderQuestion() {
   const q = quizQuestions[currentQ];
   const isHira = selectedAgeLevel === 1;
-  const pct = (currentQ / 20) * 100;
+  const base = quizGoal === 20 ? 10 : 0;
+  const pct = ((currentQ - base) / 10) * 100;
   document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('q-num').textContent = (currentQ+1) + ' / 20';
+  document.getElementById('q-num').textContent = (currentQ+1) + ' / ' + quizGoal;
 
   let html = `<div class="quiz-question${isHira?' hira':''}">${q.q}</div>`;
   html += '<div class="quiz-choices">';
@@ -2791,7 +2806,7 @@ function selectAnswer(idx) {
 
 function nextQuestion() {
   currentQ++;
-  if (currentQ >= 20) showResult();
+  if (currentQ >= quizGoal) showResult();
   else renderQuestion();
 }
 
@@ -2805,7 +2820,8 @@ function showResult() {
 
   // ── 5段階評価定義 ──
   let rank, rankLabel, rankEmoji, rankColor, rankAccent, rankBg, rankPattern, praiseMsg, cheers;
-  if (score === 20) {
+  const rate = score / quizGoal;   // 10問でも20問でも同じ基準で判定する
+  if (rate >= 1) {
     rank = 'AMAZING';
     rankLabel = 'You are amazing! 🏆';
     rankEmoji = '🏆';
@@ -2815,7 +2831,7 @@ function showResult() {
     rankPattern = 'radial-gradient(circle at 20% 20%,rgba(255,200,0,0.18) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(255,150,0,0.15) 0%,transparent 50%)';
     praiseMsg = '完璧！あなたは防災マスターです！';
     cheers = '🌟 全問正解、本当に素晴らしい！この知識が大切な命を守ります。これからも防災意識を高め続けてください！';
-  } else if (score >= 16) {
+  } else if (rate >= 0.8) {
     rank = 'EXCELLENT';
     rankLabel = 'Great job, congrats! 🥇';
     rankEmoji = '🥇';
@@ -2825,7 +2841,7 @@ function showResult() {
     rankPattern = 'radial-gradient(circle at 15% 30%,rgba(72,187,120,0.2) 0%,transparent 50%),radial-gradient(circle at 85% 70%,rgba(56,161,105,0.15) 0%,transparent 50%)';
     praiseMsg = '素晴らしい！防災知識が優れています！';
     cheers = '✨ とても高いスコアです！あと少しで満点、次回はぜひ全問正解を目指して！';
-  } else if (score >= 12) {
+  } else if (rate >= 0.6) {
     rank = 'NICE';
     rankLabel = 'Nice! 🥈';
     rankEmoji = '🥈';
@@ -2835,7 +2851,7 @@ function showResult() {
     rankPattern = 'radial-gradient(circle at 25% 25%,rgba(66,153,225,0.2) 0%,transparent 50%),radial-gradient(circle at 75% 75%,rgba(49,130,206,0.15) 0%,transparent 50%)';
     praiseMsg = '基本的な防災知識が身についています！';
     cheers = '👍 しっかり基礎が身についています！さらに学べば必ず満点に近づけます！';
-  } else if (score >= 8) {
+  } else if (rate >= 0.4) {
     rank = 'GOOD EFFORT';
     rankLabel = 'Good effort, classmate! 🥉';
     rankEmoji = '🥉';
@@ -2858,7 +2874,7 @@ function showResult() {
   }
 
   const siteUrl = "https://mkms0822-ops.github.io/bousai-quiz/";
-  const shareBody = `【DWA 防災クイズ結果】\n\n${rankEmoji} ${rankLabel}\n\n📊 20問中 ${score}問 正解\n📚 レベル：${levelName}\n\n${cheers}\n\n🔗 あなたも挑戦してみよう！\n${siteUrl}\n\n#DWA防災クイズ #防災 #DisasterReady`;
+  const shareBody = `【DWA 防災クイズ結果】\n\n${rankEmoji} ${rankLabel}\n\n📊 ${quizGoal}問中 ${score}問 正解\n📚 レベル：${levelName}\n\n${cheers}\n\n🔗 あなたも挑戦してみよう！\n${siteUrl}\n\n#DWA防災クイズ #防災 #DisasterReady`;
   const shareTextEnc = encodeURIComponent(shareBody);
   const xUrl = `https://twitter.com/intent/tweet?text=${shareTextEnc}`;
   const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(siteUrl)}&text=${shareTextEnc}`;
@@ -2874,7 +2890,7 @@ function showResult() {
       <div style="font-size:14px;font-weight:700;color:${rankColor};opacity:0.85;margin-bottom:18px">${praiseMsg}</div>
       <div style="display:inline-block;background:rgba(255,255,255,0.7);border-radius:16px;padding:12px 28px;margin-bottom:14px;backdrop-filter:blur(4px)">
         <span style="font-size:52px;font-weight:900;color:${rankColor};font-family:'M PLUS Rounded 1c',sans-serif;line-height:1">${score}</span>
-        <span style="font-size:18px;font-weight:700;color:${rankColor};opacity:0.8"> / 20問正解</span>
+        <span style="font-size:18px;font-weight:700;color:${rankColor};opacity:0.8"> / ${quizGoal}問正解</span>
       </div>
       <div style="font-size:13px;color:${rankColor};opacity:0.8;margin-bottom:20px;font-weight:600">レベル：${levelName}</div>
       <div style="background:rgba(255,255,255,0.65);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:14px;color:#333;line-height:1.7;text-align:left;backdrop-filter:blur(4px)">
@@ -2914,15 +2930,30 @@ function showResult() {
     </div>
   </div>`;
 
-  if (score === 20) {
+  if (score === quizGoal) {
+    const num = quizGoal === 20 ? 2 : 1;
     html += '<div class="card" id="stampCard" style="background:linear-gradient(135deg,#fff8e1,#fff3e0);border-color:#ffcc02">'
         + '<div class="card-title">🎖️ 防災スタンプ</div>'
-        + '<p style="font-size:14px;line-height:1.8">全問正解おめでとうございます。<br>'
-        + '防災情報センターの<b>防災スタンプを1つ</b>差し上げます。</p>'
+        + '<p style="font-size:14px;line-height:1.8">' + quizGoal + '問すべて正解、おめでとうございます。<br>'
+        + '防災情報センターの<b>防災スタンプを' + num + 'つ</b>差し上げます。</p>'
         + '<div class="btn-area center mt-16"><button class="btn btn-secondary" id="stampBtn" onclick="claimQuizStamp()">🎖️ スタンプを受け取る</button></div>'
         + '<div id="stampMsg" style="font-size:13px;line-height:1.8;margin-top:12px;text-align:center"></div>'
         + '</div>';
     setTimeout(launchConfetti, 300);
+  }
+
+  /* 前半10問が終わったところなら、続きへ進めるようにする */
+  if (quizGoal === 10) {
+    const bonus = score === 10
+      ? 'ここまでで<b>スタンプ1つ</b>。さらに10問すべて正解すると、<b>合わせて2つ</b>になります。'
+      : 'さらに10問に挑戦できます。20問すべて正解すると、<b>スタンプを2つ</b>差し上げます。';
+    html += '<div class="card" style="background:linear-gradient(135deg,#ebf8ff,#e6fffa);border-color:#4299e1">'
+        + '<div class="card-title">🔥 もう10問、挑戦しますか</div>'
+        + '<p style="font-size:14px;line-height:1.8">' + bonus + '<br>'
+        + '<span style="color:#5a7163;font-size:13px">ここまでの正解も引き継がれます。</span></p>'
+        + '<div class="btn-area center mt-16">'
+        + '<button class="btn btn-primary" onclick="continueQuiz()">さらに10問に挑戦する →</button>'
+        + '</div></div>';
   }
 
   document.getElementById('result-content').innerHTML = html;
@@ -2979,6 +3010,7 @@ function claimQuizStamp(){
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ type:'quiz', action:'stamp', code:code,
                            score:answers.filter(a=>a.isCorrect).length,
+                           goal:quizGoal, num:(quizGoal===20?2:1),
                            level:selectedAgeLevel })
   })
   .then(r => r.text())
@@ -3027,7 +3059,7 @@ function copyShareText() {
 
 ${emoji} ${label}
 
-📊 20問中 ${score}問 正解
+📊 ${quizGoal}問中 ${score}問 正解
 📚 レベル：${levelName}
 
 ${cheers}
