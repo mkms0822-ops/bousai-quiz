@@ -3022,7 +3022,23 @@ function claimQuizStamp(){
         + '<b style="font-size:16px">防災スタンプを ' + d.stamp + 'つ 受け取りました</b><br>'
         + '<span style="color:#5a7163">防災情報センターのカードに反映されます。<br>'
         + '押した日数の累計に応じて、称号が上がります。</span><br>'
+        + '<span style="font-size:11px;color:#a0aec0">引き継ぎコード：' + code + '</span><br>'
         + '<a href="https://bousai0111.info/" target="_blank" rel="noopener" style="color:#3182ce;font-weight:700">防災情報センターを開く →</a>';
+      // サイト本体（親ページ）にも反映してもらう。
+      // 台帳への書き込み直後は読み取りが追いつかないことがあるため、少し待つ。
+      try{
+        if(window.parent && window.parent !== window){
+          setTimeout(function(){
+            // ① 直接呼ぶ（同一ドメインのとき）
+            try{
+              if(typeof window.parent.initStampCard === 'function') window.parent.initStampCard();
+              if(typeof window.parent.renderRankBar === 'function') window.parent.renderRankBar();
+            }catch(e){}
+            // ② 届かない場合に備えて、合図も送る
+            try{ window.parent.postMessage({ dwa:'stamp-granted', n:d.stamp }, '*'); }catch(e){}
+          }, 1200);
+        }
+      }catch(e){}
     } else if(d && d.msg){
       btn.disabled = false; btn.textContent = '🎖️ スタンプを受け取る';
       msg.innerHTML = '<span style="color:#5a7163">' + d.msg + '</span>';
