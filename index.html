@@ -2915,7 +2915,13 @@ function showResult() {
   </div>`;
 
   if (score === 20) {
-    html += '<div class="card" style="background:linear-gradient(135deg,#fff8e1,#fff3e0);border-color:#ffcc02"><div class="card-title">🎁 Dオリジナル防災グッズ プレゼント対象</div><p style="font-size:14px;line-height:1.8">全問正解おめでとうございます！次のボタンから個人情報をご入力いただき、景品をお受け取りください。</p><div class="btn-area center mt-16"><button class="btn btn-secondary" onclick="alert(\'個人情報入力フォームは次フェーズで実装予定です\')">🎁 景品を受け取る →</button></div></div>';
+    html += '<div class="card" id="stampCard" style="background:linear-gradient(135deg,#fff8e1,#fff3e0);border-color:#ffcc02">'
+        + '<div class="card-title">🎖️ 防災スタンプ</div>'
+        + '<p style="font-size:14px;line-height:1.8">全問正解おめでとうございます。<br>'
+        + '防災情報センターの<b>防災スタンプを1つ</b>差し上げます。</p>'
+        + '<div class="btn-area center mt-16"><button class="btn btn-secondary" id="stampBtn" onclick="claimQuizStamp()">🎖️ スタンプを受け取る</button></div>'
+        + '<div id="stampMsg" style="font-size:13px;line-height:1.8;margin-top:12px;text-align:center"></div>'
+        + '</div>';
     setTimeout(launchConfetti, 300);
   }
 
@@ -2936,6 +2942,67 @@ function showResult() {
   });
   listHtml += '</div>';
   document.getElementById('result-list-area').innerHTML = listHtml;
+}
+
+/* ============================================================
+   防災スタンプの受け取り
+   ・防災情報センターと同じ引き継ぎコードを使います
+   ・同じ日に何度受け取っても、1つだけです
+   ============================================================ */
+const MAIN_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVC_aeGGOv4m7-CpKl2Z75muRwWrU6MZDj3sgaBcobw9mSq9jYDY95BsoxiZHkw1dimg/exec';
+
+function quizStampCode(){
+  try{
+    let c = localStorage.getItem('stamp_code');
+    if(!c){
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const r4 = () => { let r=''; for(let i=0;i<4;i++) r += chars[Math.floor(Math.random()*chars.length)]; return r; };
+      c = 'DWA-' + r4() + '-' + r4();
+      localStorage.setItem('stamp_code', c);
+    }
+    return c;
+  }catch(e){ return ''; }
+}
+
+function claimQuizStamp(){
+  const btn = document.getElementById('stampBtn');
+  const msg = document.getElementById('stampMsg');
+  const code = quizStampCode();
+  if(!code){
+    msg.innerHTML = '<span style="color:#c53030">この端末では受け取れません。ブラウザの設定をご確認ください。</span>';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '受け取っています…';
+  fetch(MAIN_GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ type:'quiz', action:'stamp', code:code,
+                           score:answers.filter(a=>a.isCorrect).length,
+                           level:selectedAgeLevel })
+  })
+  .then(r => r.text())
+  .then(t => {
+    let d = null; try{ d = JSON.parse(t); }catch(e){}
+    if(d && d.ok && d.stamp > 0){
+      btn.style.display = 'none';
+      msg.innerHTML = '<div style="font-size:38px;line-height:1;margin-bottom:8px">🎖️</div>'
+        + '<b style="font-size:16px">防災スタンプを ' + d.stamp + 'つ 受け取りました</b><br>'
+        + '<span style="color:#5a7163">防災情報センターのカードに反映されます。<br>'
+        + '押した日数の累計に応じて、称号が上がります。</span><br>'
+        + '<a href="https://bousai0111.info/" target="_blank" rel="noopener" style="color:#3182ce;font-weight:700">防災情報センターを開く →</a>';
+    } else if(d && d.msg){
+      btn.disabled = false; btn.textContent = '🎖️ スタンプを受け取る';
+      msg.innerHTML = '<span style="color:#5a7163">' + d.msg + '</span>';
+    } else {
+      btn.disabled = false; btn.textContent = 'もう一度受け取る';
+      msg.innerHTML = '<span style="color:#c53030">受け取れませんでした。通信の状態をご確認ください。</span>';
+    }
+  })
+  .catch(() => {
+    btn.disabled = false; btn.textContent = 'もう一度受け取る';
+    msg.innerHTML = '<span style="color:#c53030">受け取れませんでした。通信の状態をご確認ください。</span>';
+  });
 }
 
 function copyResult() {
